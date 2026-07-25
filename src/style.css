@@ -282,5 +282,5 @@ body {
   }
   #panel.open ~ #sheet-toggle { bottom: calc(62vh - 20px); }
 
-  .legend { right: 10px; bottom: auto; top: 10px; padding: 6px 10px; font-size: 0.62rem; gap: 8px; }
+  .legend { left: 10px; right: auto; bottom: auto; top: 10px; padding: 6px 10px; font-size: 0.62rem; gap: 8px; }
 }
