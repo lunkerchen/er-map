@@ -1,11 +1,12 @@
 // 抓健保署急診即時 API → 合併靜態座標 → public/data/er-status.json
 // 來源：POST https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002 （免 key，每 15 分鐘更新）
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 const API = 'https://info.nhi.gov.tw/api/inae4000/inae4001s01/SQL0002';
 const GEO = new URL('../data/hospitals.json', import.meta.url).pathname;
 const OUT = new URL('../public/data/er-status.json', import.meta.url).pathname;
+const FORCE = process.argv.includes('--force');
 
 const TYPE_NAME = { '1': '醫學中心', '2': '區域醫院', '3': '地區醫院' };
 
@@ -56,6 +57,17 @@ for (const h of json.data) {
 }
 
 hospitals.sort((a, b) => b.severity - a.severity || b.waitGeneral - a.waitGeneral);
+
+// sysdate 沒變就不寫檔（避免 fetchedAt 時間戳造成無意義 commit）
+if (!FORCE && existsSync(OUT)) {
+  try {
+    const prev = JSON.parse(readFileSync(OUT, 'utf8'));
+    if (prev.sysdate === json.sysdate) {
+      console.log(`sysdate ${json.sysdate} unchanged, skip`);
+      process.exit(0);
+    }
+  } catch { /* 舊檔壞了就覆寫 */ }
+}
 
 const out = {
   sysdate: json.sysdate,
