@@ -52,6 +52,22 @@ init().catch((e) => {
   $('#summary').innerHTML = `<div class="stat danger"><b>!</b><span>資料載入失敗：${e.message}</span></div>`;
 });
 
+/* 每 5 分鐘靜默重抓；sysdate 變了才重建 marker/list */
+setInterval(async () => {
+  try {
+    const res = await fetch(DATA_SOURCES[0], { cache: 'no-store' });
+    if (!res.ok) return;
+    const fresh = await res.json();
+    if (fresh.sysdate === state.data?.sysdate) return;
+    state.data = fresh;
+    for (const m of state.markers.values()) m.remove();
+    state.markers.clear();
+    renderSummary();
+    renderMarkers();
+    renderList();
+  } catch { /* 下次再試 */ }
+}, 5 * 60 * 1000);
+
 /* ── summary ── */
 function renderSummary() {
   const d = state.data;
