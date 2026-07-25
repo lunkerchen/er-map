@@ -1,0 +1,286 @@
+/* 急診即時壅塞地圖 — dark glass theme */
+:root {
+  --bg: #0b1220;
+  --glass: rgba(13, 20, 34, 0.65);
+  --glass-strong: rgba(13, 20, 34, 0.82);
+  --border: rgba(148, 163, 184, 0.16);
+  --title: #e2e8f0;
+  --label: #cbd5e1;
+  --dim: #94a3b8;
+  --s0: #34d399; /* 正常 */
+  --s1: #fbbf24; /* 繁忙 */
+  --s2: #fb923c; /* 壅塞 */
+  --s3: #f87171; /* 危急/滿床 */
+  --accent: #38bdf8;
+  font-size: 16px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: -apple-system, 'SF Pro Text', 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+  background: var(--bg);
+  color: var(--title);
+  overflow: hidden;
+}
+
+#map { position: fixed; inset: 0; z-index: 0; }
+
+/* ── 側欄 ─────────────────────────── */
+#panel {
+  position: fixed;
+  top: 16px; left: 16px; bottom: 16px;
+  width: 340px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: var(--glass);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.panel-head { padding: 18px 18px 10px; }
+
+.panel-head h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--title);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+.panel-head .sub {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: var(--dim);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+
+.summary {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.summary .stat {
+  flex: 1;
+  min-width: 90px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+}
+
+.summary .stat b {
+  display: block;
+  font-size: 1.15rem;
+  color: var(--title);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+
+.summary .stat span { font-size: 0.68rem; color: var(--dim); }
+.summary .stat.danger b { color: var(--s3); }
+
+.controls { margin-top: 12px; }
+
+#search {
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--title);
+  font-size: 0.88rem;
+  outline: none;
+}
+#search::placeholder { color: var(--dim); }
+#search:focus { border-color: var(--accent); }
+
+.chips { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+.chip {
+  padding: 5px 11px;
+  font-size: 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--label);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chip:hover { background: rgba(255, 255, 255, 0.12); }
+.chip.active { background: var(--accent); border-color: var(--accent); color: #082f49; font-weight: 600; }
+.chip-alert.active { background: var(--s3); border-color: var(--s3); color: #450a0a; }
+
+/* ── 醫院列表 ─────────────────────── */
+.list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  padding: 6px 10px 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+
+.list li {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.list li:hover, .list li.selected { background: rgba(255, 255, 255, 0.08); }
+
+.dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+}
+.dot.s0 { background: var(--s0); box-shadow: 0 0 8px var(--s0); }
+.dot.s1 { background: var(--s1); box-shadow: 0 0 8px var(--s1); }
+.dot.s2 { background: var(--s2); box-shadow: 0 0 8px var(--s2); }
+.dot.s3 { background: var(--s3); box-shadow: 0 0 10px var(--s3); animation: pulse 1.4s infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.list .info b {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--title);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+.list .info b .badge-full {
+  margin-left: 6px;
+  font-size: 0.62rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--s3);
+  color: #450a0a;
+  font-weight: 700;
+  vertical-align: 2px;
+}
+.list .info small { font-size: 0.72rem; color: var(--dim); }
+
+.list .metrics { text-align: right; font-size: 0.72rem; color: var(--label); line-height: 1.5; }
+.list .metrics b { color: var(--title); font-size: 0.85rem; }
+
+.panel-foot {
+  padding: 10px 16px 14px;
+  font-size: 0.68rem;
+  color: var(--dim);
+  line-height: 1.6;
+  border-top: 1px solid var(--border);
+}
+.panel-foot a { color: var(--accent); text-decoration: none; }
+
+/* ── 地圖 marker ──────────────────── */
+.er-marker {
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.35), 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+.er-marker.s3 { animation: pulse 1.4s infinite; }
+
+/* Leaflet popup 深色化 */
+.leaflet-popup-content-wrapper {
+  background: var(--glass-strong);
+  backdrop-filter: blur(24px);
+  color: var(--title);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.leaflet-popup-tip { background: var(--glass-strong); }
+.leaflet-popup-close-button { color: var(--label) !important; }
+.leaflet-popup-content { font-family: inherit; margin: 14px 16px; line-height: 1.5; }
+
+.pop h3 { font-size: 1rem; color: var(--title); text-shadow: 0 1px 6px rgba(0,0,0,0.5); }
+.pop .full-name { font-size: 0.7rem; color: var(--dim); margin-top: 2px; }
+.pop .tags { margin: 8px 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.pop .tag {
+  font-size: 0.65rem; padding: 2px 8px; border-radius: 999px;
+  background: rgba(255,255,255,0.08); border: 1px solid var(--border); color: var(--label);
+}
+.pop .tag.full119 { background: var(--s3); color: #450a0a; font-weight: 700; border-color: var(--s3); }
+.pop table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.pop td { padding: 4px 0; font-size: 0.8rem; color: var(--label); }
+.pop td:last-child { text-align: right; font-weight: 600; color: var(--title); }
+.pop .updated { margin-top: 8px; font-size: 0.65rem; color: var(--dim); }
+.pop .nav-link { color: var(--accent); text-decoration: none; font-size: 0.72rem; }
+
+/* ── 圖例 ─────────────────────────── */
+.legend {
+  position: fixed;
+  right: 14px; bottom: 14px;
+  z-index: 1000;
+  display: flex;
+  gap: 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--glass);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--border);
+  font-size: 0.7rem;
+  color: var(--label);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.legend span { display: flex; align-items: center; gap: 5px; }
+
+/* Leaflet attribution 低調化 */
+.leaflet-control-attribution {
+  background: rgba(13, 20, 34, 0.55) !important;
+  color: #64748b !important;
+  font-size: 0.6rem !important;
+}
+.leaflet-control-attribution a { color: #7d93ad !important; }
+.leaflet-control-zoom a {
+  background: var(--glass-strong) !important;
+  color: var(--label) !important;
+  border-color: var(--border) !important;
+}
+
+/* ── mobile bottom sheet ──────────── */
+#sheet-toggle { display: none; }
+
+@media (max-width: 768px) {
+  #panel {
+    top: auto;
+    left: 0; right: 0; bottom: 0;
+    width: 100%;
+    max-height: 62vh;
+    border-radius: 20px 20px 0 0;
+    transform: translateY(calc(100% - 148px));
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  #panel.open { transform: translateY(0); }
+
+  #sheet-toggle {
+    display: block;
+    position: fixed;
+    left: 50%; bottom: calc(148px - 20px);
+    transform: translateX(-50%);
+    z-index: 1001;
+    width: 44px; height: 5px;
+    border: none; border-radius: 999px;
+    background: rgba(226, 232, 240, 0.5);
+    cursor: pointer;
+    transition: bottom 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  #panel.open ~ #sheet-toggle { bottom: calc(62vh - 20px); }
+
+  .legend { right: 10px; bottom: auto; top: 10px; padding: 6px 10px; font-size: 0.62rem; gap: 8px; }
+}

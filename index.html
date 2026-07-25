@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>急診即時壅塞地圖 — 全台重度急救責任醫院</title>
+  <meta name="description" content="全台 59 家重度急救責任醫院急診即時狀態：等待看診、等待住院、等待 ICU、119 滿床通報。資料來自衛福部健保署，每 15 分鐘更新。衝急診之前，先看哪裡等最久。" />
+  <meta property="og:title" content="急診即時壅塞地圖" />
+  <meta property="og:description" content="全台 59 家重度急救責任醫院急診即時狀態，每 15 分鐘更新。先查再衝。" />
+  <meta property="og:type" content="website" />
+</head>
+<body>
+  <div id="map"></div>
+
+  <aside id="panel">
+    <header class="panel-head">
+      <h1>急診即時壅塞地圖</h1>
+      <p class="sub">全台重度急救責任醫院 · 每 15 分鐘更新</p>
+      <div id="summary" class="summary"></div>
+      <div class="controls">
+        <input id="search" type="search" placeholder="搜尋醫院 / 縣市…" autocomplete="off" />
+        <div class="chips" id="type-chips">
+          <button class="chip active" data-type="">全部</button>
+          <button class="chip" data-type="醫學中心">醫學中心</button>
+          <button class="chip" data-type="區域醫院">區域醫院</button>
+          <button class="chip" data-type="地區醫院">地區醫院</button>
+          <button class="chip chip-alert" data-full119="1">僅滿床通報</button>
+        </div>
+      </div>
+    </header>
+    <ul id="hospital-list" class="list"></ul>
+    <footer class="panel-foot">
+      資料來源：<a href="https://info.nhi.gov.tw/INAE4000/INAE4010S01" target="_blank" rel="noopener">衛福部健保署急診即時訊息</a><br />
+      急診依檢傷分類決定看診順序，非先到先看。等待推床數各院填報標準不一，僅供參考。
+    </footer>
+  </aside>
+
+  <button id="sheet-toggle" aria-label="展開醫院列表"></button>
+
+  <div class="legend">
+    <span><i class="dot s0"></i>正常</span>
+    <span><i class="dot s1"></i>繁忙</span>
+    <span><i class="dot s2"></i>壅塞</span>
+    <span><i class="dot s3"></i>危急 / 滿床</span>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
