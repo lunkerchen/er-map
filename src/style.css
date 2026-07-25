@@ -39,6 +39,8 @@ body {
   background: var(--glass);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow: hidden;
@@ -137,7 +139,6 @@ body {
   padding: 10px 10px;
   border-radius: 12px;
   cursor: pointer;
-  transition: background 0.12s;
 }
 .list li:hover, .list li.selected { background: rgba(255, 255, 255, 0.08); }
 
