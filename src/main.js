@@ -26,10 +26,23 @@ const listEl = $('#hospital-list');
 const panel = $('#panel');
 
 /* ── data ── */
+// 優先抓 GitHub raw（Actions 每 15 分鐘提交，免 rebuild 即時生效），失敗回落站內靜態檔
+const DATA_SOURCES = [
+  'https://raw.githubusercontent.com/lunkerchen/er-map/main/public/data/er-status.json',
+  'data/er-status.json',
+];
+
 async function init() {
-  const res = await fetch('data/er-status.json');
-  if (!res.ok) throw new Error(`data fetch ${res.status}`);
-  state.data = await res.json();
+  let lastErr;
+  for (const url of DATA_SOURCES) {
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`${res.status}`);
+      state.data = await res.json();
+      break;
+    } catch (e) { lastErr = e; }
+  }
+  if (!state.data) throw lastErr;
   renderSummary();
   renderMarkers();
   renderList();
