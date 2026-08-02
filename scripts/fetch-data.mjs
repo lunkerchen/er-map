@@ -23,7 +23,27 @@ function severity(h, type) {
   return 0;
 }
 
-const res = await fetch(API, {
+// 健保署 API 偶發 ECONNRESET/5xx（GitHub runner 實測），重試 3 次指數退避 2s/4s
+async function fetchWithRetry(url, options, tries = 3) {
+  let lastErr;
+  for (let i = 1; i <= tries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok || res.status < 500) return res;
+      lastErr = new Error(`API ${res.status}`);
+    } catch (e) {
+      lastErr = e;
+    }
+    if (i < tries) {
+      const wait = 2 ** i * 1000;
+      console.warn(`fetch attempt ${i}/${tries} failed (${lastErr.message}), retry in ${wait / 1000}s`);
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+  throw lastErr;
+}
+
+const res = await fetchWithRetry(API, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ AREA_NO: '', CONT_TYPE: '' }),
