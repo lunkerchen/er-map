@@ -23,8 +23,8 @@ function severity(h, type) {
   return 0;
 }
 
-// 健保署 API 偶發 ECONNRESET/5xx（GitHub runner 實測），重試 3 次指數退避 2s/4s
-async function fetchWithRetry(url, options, tries = 3) {
+// 健保署 API 偶發 ECONNRESET/5xx（GitHub runner 實測），重試 5 次 capped 指數退避 2s/4s/8s/16s
+async function fetchWithRetry(url, options, tries = 5) {
   let lastErr;
   for (let i = 1; i <= tries; i++) {
     try {
@@ -35,7 +35,7 @@ async function fetchWithRetry(url, options, tries = 3) {
       lastErr = e;
     }
     if (i < tries) {
-      const wait = 2 ** i * 1000;
+      const wait = Math.min(2 ** i, 16) * 1000;
       console.warn(`fetch attempt ${i}/${tries} failed (${lastErr.message}), retry in ${wait / 1000}s`);
       await new Promise((r) => setTimeout(r, wait));
     }
