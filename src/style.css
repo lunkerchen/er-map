@@ -89,6 +89,19 @@ body {
 
 .summary .stat span { font-size: 0.68rem; color: var(--dim); }
 .summary .stat.danger b { color: var(--s3); }
+.summary .stat.warn b { color: #fbbf24; }
+
+.stale-banner {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: #fbbf24;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
 
 .controls { margin-top: 12px; }
 

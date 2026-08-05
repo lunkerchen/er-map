@@ -23,8 +23,9 @@ function severity(h, type) {
   return 0;
 }
 
-// 健保署 API 偶發 ECONNRESET/5xx（GitHub runner 實測），重試 5 次 capped 指數退避 2s/4s/8s/16s
-async function fetchWithRetry(url, options, tries = 5) {
+// 健保署 API 偶發 ECONNRESET/5xx（GitHub runner 實測），重試 10 次 capped 指數退避 2s/4s/8s/16s/30s
+// 總窗口 ~2 分鐘，覆蓋短暫中斷；仍失敗則由 staleFallback 接手，不讓 workflow 紅燈
+async function fetchWithRetry(url, options, tries = 10) {
   let lastErr;
   for (let i = 1; i <= tries; i++) {
     try {
@@ -35,7 +36,7 @@ async function fetchWithRetry(url, options, tries = 5) {
       lastErr = e;
     }
     if (i < tries) {
-      const wait = Math.min(2 ** i, 16) * 1000;
+      const wait = Math.min(2 ** i, 30) * 1000;
       console.warn(`fetch attempt ${i}/${tries} failed (${lastErr.message}), retry in ${wait / 1000}s`);
       await new Promise((r) => setTimeout(r, wait));
     }
@@ -43,11 +44,26 @@ async function fetchWithRetry(url, options, tries = 5) {
   throw lastErr;
 }
 
+// API 全數失敗時的降級：沿用上次成功資料 + 標記 stale（前端顯示警示）。
+// 只寫一次標記（staleSince 已存在就不重寫），避免每輪 cron 產生無意義 commit。
+function staleFallback(err) {
+  if (!existsSync(OUT)) throw err; // 連舊檔都沒有 → 真實失敗
+  const prev = JSON.parse(readFileSync(OUT, 'utf8'));
+  if (prev.stale) {
+    console.warn(`still stale since ${prev.staleSince}, keeping last good data (${prev.fetchedAt})`);
+    process.exit(0);
+  }
+  const out = { ...prev, stale: true, staleSince: new Date().toISOString() };
+  writeFileSync(OUT, JSON.stringify(out));
+  console.warn(`API down (${err.message}), keeping last good data as stale since ${out.staleSince}`);
+  process.exit(0);
+}
+
 const res = await fetchWithRetry(API, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ AREA_NO: '', CONT_TYPE: '' }),
-});
+}).catch(staleFallback);
 if (!res.ok) throw new Error(`API ${res.status}`);
 const json = await res.json();
 const geo = JSON.parse(readFileSync(GEO, 'utf8'));
@@ -78,11 +94,12 @@ for (const h of json.data) {
 
 hospitals.sort((a, b) => b.severity - a.severity || b.waitGeneral - a.waitGeneral);
 
-// sysdate 沒變就不寫檔（避免 fetchedAt 時間戳造成無意義 commit）
+// sysdate 沒變就不寫檔（避免 fetchedAt 時間戳造成無意義 commit）；
+// 但若上次是 stale，這次成功必須清掉標記
 if (!FORCE && existsSync(OUT)) {
   try {
     const prev = JSON.parse(readFileSync(OUT, 'utf8'));
-    if (prev.sysdate === json.sysdate) {
+    if (prev.sysdate === json.sysdate && !prev.stale) {
       console.log(`sysdate ${json.sysdate} unchanged, skip`);
       process.exit(0);
     }

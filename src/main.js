@@ -52,13 +52,13 @@ init().catch((e) => {
   $('#summary').innerHTML = `<div class="stat danger"><b>!</b><span>資料載入失敗：${e.message}</span></div>`;
 });
 
-/* 每 5 分鐘靜默重抓；sysdate 變了才重建 marker/list */
+/* 每 5 分鐘靜默重抓；sysdate 或 stale 狀態變了才重建 marker/list */
 setInterval(async () => {
   try {
     const res = await fetch(DATA_SOURCES[0], { cache: 'no-store' });
     if (!res.ok) return;
     const fresh = await res.json();
-    if (fresh.sysdate === state.data?.sysdate) return;
+    if (fresh.sysdate === state.data?.sysdate && fresh.stale === state.data?.stale) return;
     state.data = fresh;
     for (const m of state.markers.values()) m.remove();
     state.markers.clear();
@@ -68,15 +68,28 @@ setInterval(async () => {
   } catch { /* 下次再試 */ }
 }, 5 * 60 * 1000);
 
+/* 每分鐘更新「X 分前」標籤 */
+setInterval(() => { if (state.data) renderSummary(); }, 60 * 1000);
+
 /* ── summary ── */
+function dataAgeMin(d) {
+  const t = Date.parse(d.fetchedAt);
+  if (!t) return null;
+  return Math.max(0, Math.round((Date.now() - t) / 60000));
+}
+
 function renderSummary() {
   const d = state.data;
   const congested = d.hospitals.filter((h) => h.severity >= 2).length;
+  const age = dataAgeMin(d);
+  const stale = !!d.stale; // 僅 API 中斷降級時警示；年齡是事實陳述（GitHub cron 本身間隔 60-220 分鐘）
+  const timeLabel = age === null ? d.sysdate.slice(11, 16) : `${d.sysdate.slice(11, 16)}（${age} 分前）`;
   $('#summary').innerHTML = `
+    ${stale ? '<div class="stale-banner">⚠ 資料已過期，顯示的是最後一次成功抓取內容</div>' : ''}
     <div class="stat danger"><b>${d.full119Count}</b><span>119 滿床通報</span></div>
     <div class="stat"><b>${congested}</b><span>壅塞以上</span></div>
     <div class="stat"><b>${d.count}</b><span>監測醫院</span></div>
-    <div class="stat"><b>${d.sysdate.slice(11, 16)}</b><span>資料時間</span></div>`;
+    <div class="stat ${stale ? 'warn' : ''}"><b>${timeLabel}</b><span>資料時間</span></div>`;
 }
 
 /* ── markers ── */
